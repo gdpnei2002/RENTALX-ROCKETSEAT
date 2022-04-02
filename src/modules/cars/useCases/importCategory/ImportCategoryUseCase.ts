@@ -1,17 +1,42 @@
-import csvParce from "csv-parse";
 import fs from "fs";
+import {parse} from "csv-parse";
+import { ICategoriesRepository } from "../../repositories/ICategoriesRepository";
+import { resolve } from "tsconfig";
+
+interface IImportCategory{
+    name: string;
+    description: string;
+}
  
 class ImportCategoryUseCase{
-    execute(file: Express.Multer.File): void{
+    constructor (private categories: ICategoriesRepository) {}
+
+    loadCategories(file: Express.Multer.File): Promise<IImportCategory[]>{
+        return new Promise((resolve, reject) =>{
         const stream = fs.createReadStream(file.path);
+        const categories: IImportCategory[] = [];
 
-        const parseFile = csvParce()
+        const parseFile = parse();
 
-        stream.pipe(parseFile)
+        stream.pipe(parseFile);
 
         parseFile.on("data", async (line) =>{
-            
-        });
+            const [name, description] = line;
+            categories.push({
+                name,
+                description,
+            });
+        })
+        .on("end", () => {
+            resolve(categories);
+        })
+        .on("error", (err) =>{
+            reject(err);
+        })
+        })
+    }
+    async execute(file: Express.Multer.File): Promise<void>{
+        const categories =  await this.loadCategories(file);
     }
 }
 
